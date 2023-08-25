@@ -6,10 +6,10 @@ const http = require('http')
 const express = require('express')
 const socketio = require('socket.io')
 const messageFormat = require('./public/util/message')
-const {userJoin , getCurrentUser} = require('./public/util/users')
+const {userJoin , getCurrentUser,userLeave,getRoomUsers} = require('./public/util/users')
 
 
-
+ 
 
 const app = express()
 const server = http.createServer(app)
@@ -33,18 +33,41 @@ socket.broadcast
 .to(user.room)
 .emit('message' , messageFormat('chatCord' , `${user.username} has joined the chat`))
 
+// Send users and room info
+io.to(user.room).emit('roomUsers' , {
+    room : user.room,
+    users : getRoomUsers(user.room)
+})
+
 });
+
+
+
 
 
 // listen for chat msg
 socket.on('chatMessage' , msg=>{
-    io.emit('message' , messageFormat('sahil' , msg)) 
+    const user = getCurrentUser(socket.id)
+    io.to(user.room).emit('message' , messageFormat( user.username, msg)) 
 })
 
 
 //  broadcast when the user disconnects
 socket.on('disconnect' ,()=>{
-    io.emit('message' , messageFormat('chatCord' , ` has disconnected`))
+    const user = userLeave(socket.id);
+
+    if(user){
+        io.to(user.room).emit('message' , messageFormat('chatCord' , ` ${user.username} has disconnected`))
+   
+        io.to(user.room).emit('roomUser' , {
+            room : user.room,
+            users : getRoomUsers(user.room)
+        })
+    
+   
+    }
+
+ 
 })
 })
 
